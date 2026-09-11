@@ -1,0 +1,32 @@
+# ==========================================
+# Blueprint Render pour le Backend E-commerce
+# ==========================================
+services:
+  - type: web
+    name: backend-ecommerce
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt # ou oregon / ohio selon votre préférence
+    autoDeploy: true
+    envVars:
+      - key: SERVER_PORT
+        value: 8080
+      # Base de données Aiven MySQL
+      # Format attendu : jdbc:mysql://mysql-xxxx.aivencloud.com:XXXXX/defaultdb?sslMode=REQUIRED
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # Clé secrète JWT
+      - key: JWT_SECRET
+        sync: false
+      # Google OAuth 2.0 Credentials
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false

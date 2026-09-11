@@ -23,6 +23,7 @@ public class OrderItem {
     // 🔗 Commande associée
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"items", "hibernateLazyInitializer", "handler"})
     private Order order;
 
     // 📦 Quantité commandée
@@ -32,4 +33,12 @@ public class OrderItem {
     // 💰 Prix unitaire au moment de la commande
     @Column(nullable = false)
     private Double unitPrice;
+
+    // 📏 Taille ou format choisi
+    @Column(nullable = true)
+    private String taille;
+
+    // 🎨 Couleur ou variante choisie
+    @Column(nullable = true)
+    private String couleur;
 }

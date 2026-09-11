@@ -9,9 +9,14 @@ import java.util.List;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    // 👤 Commandes d’un utilisateur
+    // 👤 Commandes d’un utilisateur (triées par date décroissante)
     List<Order> findByUser(User user);
+    List<Order> findByUserOrderByCreatedAtDesc(User user);
+
+    // 👨‍💼 Toutes les commandes (triées par date décroissante)
+    List<Order> findAllByOrderByCreatedAtDesc();
 
     // 👨‍💼 Commandes par statut (pour filtrage admin)
     List<Order> findByStatus(OrderStatus status);
+    List<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status);
 }

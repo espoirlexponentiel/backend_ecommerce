@@ -23,7 +23,10 @@ public class User implements UserDetails {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = true)
+    private String nom;
+
+    @Column(nullable = true)
     private String username;
 
     @Column(nullable = false)
@@ -35,16 +38,31 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String provider; // "local" ou "google"
 
+    @Column(nullable = true)
+    private String telephone;
+
+    @Column(nullable = true)
+    private String adresse;
+
     // ✅ Autorités pour Spring Security
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singleton(() -> "ROLE_" + role);
+        final String roleName = (role != null && !role.isBlank())
+                ? (role.toUpperCase().startsWith("ROLE_") ? role.toUpperCase() : "ROLE_" + role.toUpperCase())
+                : "ROLE_USER";
+        return Collections.singleton(new org.springframework.security.core.authority.SimpleGrantedAuthority(roleName));
     }
 
-    // ✅ Utilisé par Spring Security pour l'identifiant
+    // ✅ Utilisé par Spring Security pour l'identifiant principal
     @Override
     public String getUsername() {
-        return email; // ou username si tu préfères
+        return email != null ? email : username;
+    }
+
+    public String getDisplayName() {
+        if (nom != null && !nom.isBlank()) return nom;
+        if (username != null && !username.isBlank()) return username;
+        return email;
     }
 
     @Override

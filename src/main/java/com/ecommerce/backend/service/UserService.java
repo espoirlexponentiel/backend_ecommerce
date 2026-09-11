@@ -17,13 +17,30 @@ public class UserService {
 
     // 🔐 Inscription classique avec encodage du mot de passe
     public User registerUser(User user) {
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            throw new RuntimeException("L'adresse email est obligatoire");
+        }
+
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new RuntimeException("Utilisateur déjà existant avec cet email : " + user.getEmail());
         }
 
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setRole("USER");
-        user.setProvider("local");
+        if (user.getNom() == null && user.getUsername() != null) {
+            user.setNom(user.getUsername());
+        } else if (user.getUsername() == null && user.getNom() != null) {
+            user.setUsername(user.getNom());
+        }
+
+        if (user.getPassword() != null && !user.getPassword().isBlank()) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+        
+        if (user.getRole() == null || user.getRole().isBlank()) {
+            user.setRole("USER");
+        }
+        if (user.getProvider() == null || user.getProvider().isBlank()) {
+            user.setProvider("local");
+        }
         return userRepository.save(user);
     }
 

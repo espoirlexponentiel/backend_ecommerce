@@ -27,14 +27,23 @@ public class ProductController {
 
     private final ProductService productService;
     private final CategoryService categoryService;
+    private final com.ecommerce.backend.service.CloudinaryService cloudinaryService;
 
-    // 📂 Dossier d’upload (dans le projet)
-    private static final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/";
-
-    // 🔓 Récupérer tous les produits
+    // 🔓 Récupérer les produits (supporte ?marketId=... &search=...)
     @GetMapping
-    public ResponseEntity<List<Product>> getAllProducts() {
-        return ResponseEntity.ok(productService.getAllProducts());
+    public ResponseEntity<List<Product>> getProducts(
+            @RequestParam(required = false) String marketId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String q
+    ) {
+        String query = (search != null && !search.isBlank()) ? search : q;
+        return ResponseEntity.ok(productService.getProducts(marketId, query));
+    }
+
+    // 🔓 Récupérer les produits par marché
+    @GetMapping("/market/{marketId}")
+    public ResponseEntity<List<Product>> getProductsByMarket(@PathVariable String marketId) {
+        return ResponseEntity.ok(productService.getProductsByMarket(marketId));
     }
 
     // 🔓 Récupérer les produits par nom de catégorie
@@ -51,63 +60,105 @@ public class ProductController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 🔐 Créer un nouveau produit (image facultative)
+    // 🔐 Créer un nouveau produit via JSON (application/json)
+    @PostMapping(consumes = {"application/json"})
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> createProductJson(@RequestBody Product product) {
+        if (product.getNom() == null || product.getNom().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Le nom du produit est obligatoire"));
+        }
+
+        if (product.getCategory() != null && product.getCategory().getNom() != null) {
+            String norm = product.getCategory().getNom().trim().toLowerCase();
+            Category category = categoryService.getCategoryByNom(norm)
+                    .orElseGet(() -> categoryService.createCategory(new Category(null, norm, null)));
+            product.setCategory(category);
+        }
+
+        Product saved = productService.createProduct(product);
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                Map.of("message", "✅ Produit créé avec succès", "product", saved)
+        );
+    }
+
+    // 🔐 Créer un nouveau produit avec upload d'image (multipart/form-data)
     @PostMapping(consumes = {"multipart/form-data"})
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> createProduct(
+    public ResponseEntity<?> createProductMultipart(
             @RequestParam("nom") String productNom,
-            @RequestParam("description") String productDescription,
+            @RequestParam(value = "description", required = false) String productDescription,
             @RequestParam("prix") Double productPrix,
-            @RequestParam("stock") Integer productStock,
-            @RequestParam("category") String categoryNom,
+            @RequestParam(value = "ancienPrix", required = false) Double ancienPrix,
+            @RequestParam(value = "stock", required = false, defaultValue = "20") Integer productStock,
+            @RequestParam(value = "category", required = false) String categoryNom,
+            @RequestParam(value = "marketId", required = false) String marketId,
+            @RequestParam(value = "sousTitre", required = false) String sousTitre,
+            @RequestParam(value = "badge", required = false) String badge,
+            @RequestParam(value = "tailles", required = false) String tailles,
+            @RequestParam(value = "couleurs", required = false) String couleurs,
+            @RequestParam(value = "composition", required = false) String composition,
+            @RequestParam(value = "pointsForts", required = false) String pointsForts,
             @RequestParam(value = "image", required = false) MultipartFile imageFile,
             HttpServletRequest request
     ) throws IOException {
 
-        // 🔄 Normaliser le nom de catégorie
-        String normalizedCategoryName = categoryNom.trim().toLowerCase();
-
-        Category category = categoryService.getCategoryByNom(normalizedCategoryName)
-                .orElseGet(() -> categoryService.createCategory(
-                        new Category(null, normalizedCategoryName, null)
-                ));
+        Category category = null;
+        if (categoryNom != null && !categoryNom.isBlank()) {
+            String normalizedCategoryName = categoryNom.trim().toLowerCase();
+            category = categoryService.getCategoryByNom(normalizedCategoryName)
+                    .orElseGet(() -> categoryService.createCategory(
+                            new Category(null, normalizedCategoryName, null)
+                    ));
+        }
 
         String imageUrl = null;
         if (imageFile != null && !imageFile.isEmpty()) {
-            String originalName = imageFile.getOriginalFilename();
-            if (originalName != null && !originalName.isBlank()) {
-                // 📂 Créer le dossier si nécessaire
-                File uploadDir = new File(UPLOAD_DIR);
-                if (!uploadDir.exists()) {
-                    uploadDir.mkdirs();
-                }
-
-                // 📂 Sauvegarder le fichier via InputStream (pas de tmpdir)
-                File destination = new File(UPLOAD_DIR, originalName);
-                try (InputStream inputStream = imageFile.getInputStream()) {
-                    Files.copy(inputStream, destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                }
-
-                // 🌐 Construire l’URL complète
-                String baseUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
-                imageUrl = baseUrl + "/uploads/" + originalName;
-                System.out.println("Upload path: " + destination.getAbsolutePath());
-            }
+            imageUrl = cloudinaryService.uploadImage(imageFile, "ecommerce_products");
         }
 
-        Product product = new Product();
-        product.setNom(productNom);
-        product.setDescription(productDescription);
-        product.setPrix(productPrix);
-        product.setStock(productStock);
-        product.setImageUrl(imageUrl);
-        product.setCategory(category);
+        Product product = Product.builder()
+                .nom(productNom)
+                .description(productDescription != null ? productDescription : "")
+                .prix(productPrix)
+                .ancienPrix(ancienPrix)
+                .stock(productStock != null ? productStock : 20)
+                .marketId(marketId != null ? marketId : "vestimentaire")
+                .sousTitre(sousTitre)
+                .badge(badge)
+                .tailles(tailles)
+                .couleurs(couleurs)
+                .composition(composition)
+                .pointsForts(pointsForts)
+                .imageUrl(imageUrl)
+                .category(category)
+                .rating(5.0)
+                .reviewCount(1)
+                .build();
 
         Product saved = productService.createProduct(product);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 Map.of("message", "✅ Produit créé avec succès", "product", saved)
         );
+    }
+
+    // 🔐 Endpoint d'upload direct d'image vers Cloudinary (Admin)
+    @PostMapping(value = "/upload-image", consumes = {"multipart/form-data"})
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> uploadProductImage(@RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Veuillez sélectionner un fichier image"));
+        }
+        try {
+            String secureUrl = cloudinaryService.uploadImage(file, "ecommerce_products");
+            return ResponseEntity.ok(Map.of(
+                    "url", secureUrl,
+                    "message", "✅ Image uploadée avec succès sur Cloudinary"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Échec de l'upload Cloudinary: " + e.getMessage()));
+        }
     }
 
     // 🔐 Supprimer un produit par ID
@@ -122,6 +173,12 @@ public class ProductController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product updatedProduct) {
+        if (updatedProduct.getCategory() != null && updatedProduct.getCategory().getNom() != null) {
+            String norm = updatedProduct.getCategory().getNom().trim().toLowerCase();
+            Category category = categoryService.getCategoryByNom(norm)
+                    .orElseGet(() -> categoryService.createCategory(new Category(null, norm, null)));
+            updatedProduct.setCategory(category);
+        }
         Product saved = productService.updateProduct(id, updatedProduct);
         return ResponseEntity.ok(saved);
     }

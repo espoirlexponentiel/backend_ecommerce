@@ -24,15 +24,18 @@ public class OrderController {
 
     // 🛒 Valider le panier et créer une commande
     @PostMapping
-    public ResponseEntity<?> placeOrder(@AuthenticationPrincipal User user) {
+    public ResponseEntity<?> placeOrder(
+            @AuthenticationPrincipal User user,
+            @RequestBody(required = false) com.ecommerce.backend.dto.OrderRequestDTO orderRequest
+    ) {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Connexion requise pour passer une commande"));
         }
 
         try {
-            Map<String, Object> orderResponse = orderService.placeOrder(user);
-            return ResponseEntity.ok(orderResponse);
+            Map<String, Object> orderResponse = orderService.placeOrder(user, orderRequest);
+            return ResponseEntity.status(HttpStatus.CREATED).body(orderResponse);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -47,7 +50,10 @@ public class OrderController {
         }
 
         List<Order> orders = orderService.getOrdersByUser(user);
-        return ResponseEntity.ok(orders);
+        List<OrderSummaryDTO> summaries = orders.stream()
+                .map(OrderSummaryDTO::new)
+                .toList();
+        return ResponseEntity.ok(summaries);
     }
 
     // 👨‍💼 Voir toutes les commandes (admin)
@@ -64,14 +70,28 @@ public class OrderController {
     // 🔄 Modifier le statut d’une commande (admin)
     @PutMapping("/admin/{orderId}/status")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> updateOrderStatus(@PathVariable Long orderId,
-                                               @RequestParam String status) {
+    public ResponseEntity<?> updateOrderStatus(
+            @PathVariable Long orderId,
+            @RequestParam(required = false) String status,
+            @RequestBody(required = false) Map<String, String> body
+    ) {
+        String statusStr = status;
+        if ((statusStr == null || statusStr.isBlank()) && body != null) {
+            statusStr = body.getOrDefault("status", body.get("statut"));
+        }
+
+        if (statusStr == null || statusStr.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Paramètre statut requis"));
+        }
+
         try {
-            OrderStatus newStatus = OrderStatus.valueOf(status.toUpperCase()); // ✅ force majuscules
+            OrderStatus newStatus = OrderStatus.fromFlexibleString(statusStr);
             orderService.updateOrderStatus(orderId, newStatus);
-            return ResponseEntity.ok(Map.of("message", "Statut mis à jour"));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Statut invalide : " + status));
+            return ResponseEntity.ok(Map.of(
+                    "message", "Statut mis à jour avec succès",
+                    "orderId", orderId,
+                    "status", newStatus.name()
+            ));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
         }
@@ -89,7 +109,7 @@ public class OrderController {
 
         try {
             orderService.cancelOrder(user, orderId);
-            return ResponseEntity.ok(Map.of("message", "Commande annulée"));
+            return ResponseEntity.ok(Map.of("message", "Commande annulée avec succès"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

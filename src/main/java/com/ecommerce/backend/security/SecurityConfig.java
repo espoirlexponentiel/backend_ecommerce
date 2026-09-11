@@ -44,9 +44,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/login").permitAll()
                 .requestMatchers("/oauth2/**").permitAll()
 
-                // 🔓 Accès libre aux produits et catégories
+                // 🔓 Accès libre aux produits, catégories et marchés
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/markets/**").permitAll()
 
                 // 🔓 Images accessibles sans authentification
                 .requestMatchers("/uploads/**").permitAll()
@@ -71,7 +72,8 @@ public class SecurityConfig {
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        config.addAllowedOrigin("http://localhost:3000"); // ✅ ton frontend React
+        config.addAllowedOriginPattern("http://localhost:[*]"); // ✅ Supporte tous les ports localhost (3000, 5173, etc.)
+        config.addAllowedOrigin("http://localhost:3000");
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
         config.setAllowCredentials(true); // ✅ autorise les cookies/token

@@ -16,9 +16,33 @@ public class ProductService {
 
     private final ProductRepository productRepository;
 
+    // 🔹 Récupérer tous les produits (avec filtrage optionnel par marché et mot-clé)
+    public List<Product> getProducts(String marketId, String search) {
+        if (marketId != null && !marketId.isBlank() && !marketId.equalsIgnoreCase("all")) {
+            if (search != null && !search.isBlank()) {
+                return productRepository.findByMarketIdAndNomContainingIgnoreCase(marketId.trim(), search.trim());
+            }
+            return productRepository.findByMarketId(marketId.trim());
+        }
+
+        if (search != null && !search.isBlank()) {
+            return productRepository.findByNomContainingIgnoreCaseOrDescriptionContainingIgnoreCase(search.trim(), search.trim());
+        }
+
+        return productRepository.findAll();
+    }
+
     // 🔹 Récupérer tous les produits
     public List<Product> getAllProducts() {
         return productRepository.findAll();
+    }
+
+    // 🔹 Récupérer les produits par marché
+    public List<Product> getProductsByMarket(String marketId) {
+        if (marketId == null || marketId.isBlank() || marketId.equalsIgnoreCase("all")) {
+            return productRepository.findAll();
+        }
+        return productRepository.findByMarketId(marketId.trim());
     }
 
     // 🔹 Récupérer les produits par nom de catégorie (insensible à la casse)
@@ -38,6 +62,9 @@ public class ProductService {
     // 🔹 Créer un nouveau produit
     @Transactional
     public Product createProduct(Product product) {
+        if (product.getStock() == null) product.setStock(20);
+        if (product.getRating() == null) product.setRating(5.0);
+        if (product.getReviewCount() == null) product.setReviewCount(1);
         return productRepository.save(product);
     }
 
@@ -55,12 +82,22 @@ public class ProductService {
     public Product updateProduct(Long id, Product updatedProduct) {
         return productRepository.findById(id)
                 .map(existing -> {
-                    existing.setNom(updatedProduct.getNom());
-                    existing.setDescription(updatedProduct.getDescription());
-                    existing.setPrix(updatedProduct.getPrix());
-                    existing.setStock(updatedProduct.getStock());
-                    existing.setImageUrl(updatedProduct.getImageUrl());
-                    existing.setCategory(updatedProduct.getCategory());
+                    if (updatedProduct.getNom() != null) existing.setNom(updatedProduct.getNom());
+                    if (updatedProduct.getDescription() != null) existing.setDescription(updatedProduct.getDescription());
+                    if (updatedProduct.getPrix() != null) existing.setPrix(updatedProduct.getPrix());
+                    if (updatedProduct.getAncienPrix() != null) existing.setAncienPrix(updatedProduct.getAncienPrix());
+                    if (updatedProduct.getStock() != null) existing.setStock(updatedProduct.getStock());
+                    if (updatedProduct.getImageUrl() != null) existing.setImageUrl(updatedProduct.getImageUrl());
+                    if (updatedProduct.getMarketId() != null) existing.setMarketId(updatedProduct.getMarketId());
+                    if (updatedProduct.getSousTitre() != null) existing.setSousTitre(updatedProduct.getSousTitre());
+                    if (updatedProduct.getBadge() != null) existing.setBadge(updatedProduct.getBadge());
+                    if (updatedProduct.getTailles() != null) existing.setTailles(updatedProduct.getTailles());
+                    if (updatedProduct.getCouleurs() != null) existing.setCouleurs(updatedProduct.getCouleurs());
+                    if (updatedProduct.getComposition() != null) existing.setComposition(updatedProduct.getComposition());
+                    if (updatedProduct.getPointsForts() != null) existing.setPointsForts(updatedProduct.getPointsForts());
+                    if (updatedProduct.getRating() != null) existing.setRating(updatedProduct.getRating());
+                    if (updatedProduct.getReviewCount() != null) existing.setReviewCount(updatedProduct.getReviewCount());
+                    if (updatedProduct.getCategory() != null) existing.setCategory(updatedProduct.getCategory());
                     return productRepository.save(existing);
                 })
                 .orElseThrow(() -> new EntityNotFoundException("Produit introuvable avec l'ID : " + id));

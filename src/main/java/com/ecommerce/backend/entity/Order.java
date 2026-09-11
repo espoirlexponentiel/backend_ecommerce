@@ -36,6 +36,26 @@ public class Order {
     @Column(nullable = false)
     private Double totalAmount;
 
+    // 🚚 Frais de port
+    @Column(nullable = true)
+    private Double fraisPort;
+
+    // 📍 Adresse de livraison
+    @Column(nullable = true, columnDefinition = "TEXT")
+    private String adresseLivraison;
+
+    // 📞 Téléphone de contact
+    @Column(nullable = true)
+    private String telephone;
+
+    // 💳 Mode de paiement (Carte, Mobile Money, Google Pay, etc.)
+    @Column(nullable = true)
+    private String modePaiement;
+
+    // 🏬 Marché concerné (Mode, Alimentation, etc.)
+    @Column(nullable = true)
+    private String marche;
+
     // 📅 Date de commande
     @Column(nullable = false)
     private LocalDateTime createdAt;

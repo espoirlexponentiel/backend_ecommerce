@@ -27,5 +27,6 @@ public class Cart {
     // 📦 Liste des articles dans le panier
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("cart")
+    @Builder.Default
     private List<CartItem> items = new ArrayList<>();
 }
