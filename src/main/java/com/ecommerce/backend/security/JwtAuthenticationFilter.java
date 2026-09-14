@@ -54,29 +54,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String token = authHeader.substring(7);
 
         try {
-            // ✅ Vérifier expiration
-            if (jwtUtil.isTokenExpired(token)) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                return;
-            }
+            if (!jwtUtil.isTokenExpired(token)) {
+                final String email = jwtUtil.extractUsername(token);
+                if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    User user = userRepository.findByEmail(email).orElse(null);
 
-            // ✅ Extraire l'email depuis le token
-            final String email = jwtUtil.extractUsername(token);
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                User user = userRepository.findByEmail(email).orElse(null);
+                    if (user != null && jwtUtil.isTokenValid(token, user)) {
+                        UsernamePasswordAuthenticationToken authToken =
+                                new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
 
-                if (user != null && jwtUtil.isTokenValid(token, user)) {
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                    } else {
+                        System.out.println("⚠️ [JWT] User not found or token invalid for email: " + email + ", user in DB: " + (user != null));
+                    }
                 }
+            } else {
+                System.out.println("⚠️ [JWT] Token is expired");
             }
-
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
+            System.err.println("⚠️ [JWT] Filter Exception: " + e.getMessage());
         }
 
         // ✅ Continuer la chaîne de filtres

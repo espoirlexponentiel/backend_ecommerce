@@ -28,7 +28,23 @@ public class OrderSummaryDTO {
     private LocalDateTime createdAt;
     private String date;
     private Map<String, Object> client;
-    private List<OrderItem> items;
+    private List<OrderItemDetailDTO> items;
+
+    @Data
+    @NoArgsConstructor
+    public static class OrderItemDetailDTO {
+        private Long id;
+        private Long productId;
+        private String nom;
+        private String imageUrl;
+        private Integer quantity;
+        private Integer quantite;
+        private Double unitPrice;
+        private Double prix;
+        private String taille;
+        private String couleur;
+        private Map<String, Object> product;
+    }
 
     public OrderSummaryDTO(Order order) {
         this.id = order.getId();
@@ -43,26 +59,57 @@ public class OrderSummaryDTO {
         this.marche = order.getMarche() != null ? order.getMarche() : "Général";
         this.createdAt = order.getCreatedAt();
         this.date = order.getCreatedAt() != null ? order.getCreatedAt().toString() : "";
-        this.items = order.getItems();
 
+        if (order.getItems() != null) {
+            this.items = order.getItems().stream().map(item -> {
+                OrderItemDetailDTO dto = new OrderItemDetailDTO();
+                dto.setId(item.getId());
+                dto.setQuantity(item.getQuantity());
+                dto.setQuantite(item.getQuantity());
+                dto.setUnitPrice(item.getUnitPrice());
+                dto.setPrix(item.getUnitPrice());
+                dto.setTaille(item.getTaille());
+                dto.setCouleur(item.getCouleur());
+
+                Map<String, Object> prodMap = new java.util.HashMap<>();
+                if (item.getProduct() != null) {
+                    dto.setProductId(item.getProduct().getId());
+                    dto.setNom(item.getProduct().getNom());
+                    dto.setImageUrl(item.getProduct().getImageUrl());
+
+                    prodMap.put("id", item.getProduct().getId());
+                    prodMap.put("nom", item.getProduct().getNom());
+                    prodMap.put("imageUrl", item.getProduct().getImageUrl());
+                    prodMap.put("prix", item.getProduct().getPrix());
+                } else {
+                    dto.setNom("Article de commande");
+                    dto.setImageUrl("");
+                    prodMap.put("nom", "Article de commande");
+                    prodMap.put("imageUrl", "");
+                }
+                dto.setProduct(prodMap);
+                return dto;
+            }).collect(java.util.stream.Collectors.toList());
+        } else {
+            this.items = java.util.Collections.emptyList();
+        }
+
+        java.util.Map<String, Object> clientMap = new java.util.HashMap<>();
         if (order.getUser() != null) {
             this.userEmail = order.getUser().getEmail();
             this.userNom = order.getUser().getDisplayName();
-            this.client = Map.of(
-                "nom", order.getUser().getDisplayName(),
-                "email", order.getUser().getEmail(),
-                "telephone", order.getTelephone() != null ? order.getTelephone() : (order.getUser().getTelephone() != null ? order.getUser().getTelephone() : ""),
-                "adresse", order.getAdresseLivraison() != null ? order.getAdresseLivraison() : (order.getUser().getAdresse() != null ? order.getUser().getAdresse() : "")
-            );
+            clientMap.put("nom", order.getUser().getDisplayName() != null ? order.getUser().getDisplayName() : "Client");
+            clientMap.put("email", order.getUser().getEmail() != null ? order.getUser().getEmail() : "");
+            clientMap.put("telephone", order.getTelephone() != null ? order.getTelephone() : (order.getUser().getTelephone() != null ? order.getUser().getTelephone() : ""));
+            clientMap.put("adresse", order.getAdresseLivraison() != null ? order.getAdresseLivraison() : (order.getUser().getAdresse() != null ? order.getUser().getAdresse() : ""));
         } else {
             this.userEmail = "Client invité";
             this.userNom = "Client";
-            this.client = Map.of(
-                "nom", "Client",
-                "email", "",
-                "telephone", order.getTelephone() != null ? order.getTelephone() : "",
-                "adresse", order.getAdresseLivraison() != null ? order.getAdresseLivraison() : ""
-            );
+            clientMap.put("nom", "Client");
+            clientMap.put("email", "");
+            clientMap.put("telephone", order.getTelephone() != null ? order.getTelephone() : "");
+            clientMap.put("adresse", order.getAdresseLivraison() != null ? order.getAdresseLivraison() : "");
         }
+        this.client = clientMap;
     }
 }

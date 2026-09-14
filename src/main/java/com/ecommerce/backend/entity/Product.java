@@ -28,11 +28,11 @@ public class Product {
     @Column(nullable = false)
     private Integer stock;
 
-    // ✅ Une seule colonne en base : image_url
+    // ✅ Image URL du produit
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
 
-    // 🏬 Identifiant du marché auquel est rattaché le produit
+    // 🏬 Identifiant du marché (synchro ou hérité de la catégorie)
     @Column(name = "market_id", nullable = true)
     private String marketId;
 
@@ -74,7 +74,18 @@ public class Product {
     @Column(name = "review_count", nullable = true)
     private Integer reviewCount = 1;
 
-    @ManyToOne
-    @JsonIgnoreProperties("products")
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "category_id", nullable = true)
+    @JsonIgnoreProperties({"products"})
     private Category category;
+
+    public String getMarketId() {
+        if (this.marketId != null && !this.marketId.isBlank()) {
+            return this.marketId;
+        }
+        if (this.category != null && this.category.getMarket() != null) {
+            return this.category.getMarket().getId();
+        }
+        return null;
+    }
 }

@@ -23,13 +23,14 @@ public class Order {
     private Long id;
 
     // 🔗 Utilisateur ayant passé la commande
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", nullable = false)
-    @JsonIgnoreProperties({"orders", "password"})
+    @JsonIgnoreProperties({"orders", "password", "hibernateLazyInitializer", "handler"})
     private User user;
 
     // 📦 Liste des articles commandés
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JsonIgnoreProperties({"order", "hibernateLazyInitializer", "handler"})
     private List<OrderItem> items;
 
     // 💰 Montant total

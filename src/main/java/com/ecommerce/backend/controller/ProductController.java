@@ -1,8 +1,11 @@
 package com.ecommerce.backend.controller;
 
 import com.ecommerce.backend.entity.Category;
+import com.ecommerce.backend.entity.Market;
 import com.ecommerce.backend.entity.Product;
 import com.ecommerce.backend.service.CategoryService;
+import com.ecommerce.backend.service.CloudinaryService;
+import com.ecommerce.backend.service.MarketService;
 import com.ecommerce.backend.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -12,11 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 
@@ -27,7 +26,8 @@ public class ProductController {
 
     private final ProductService productService;
     private final CategoryService categoryService;
-    private final com.ecommerce.backend.service.CloudinaryService cloudinaryService;
+    private final MarketService marketService;
+    private final CloudinaryService cloudinaryService;
 
     // 🔓 Récupérer les produits (supporte ?marketId=... &search=...)
     @GetMapping
@@ -68,11 +68,28 @@ public class ProductController {
             return ResponseEntity.badRequest().body(Map.of("error", "Le nom du produit est obligatoire"));
         }
 
-        if (product.getCategory() != null && product.getCategory().getNom() != null) {
-            String norm = product.getCategory().getNom().trim().toLowerCase();
-            Category category = categoryService.getCategoryByNom(norm)
-                    .orElseGet(() -> categoryService.createCategory(new Category(null, norm, null)));
-            product.setCategory(category);
+        String targetMarketId = product.getMarketId() != null && !product.getMarketId().isBlank() 
+                ? product.getMarketId() : "vestimentaire";
+
+        Category resolvedCategory = null;
+
+        if (product.getCategory() != null) {
+            if (product.getCategory().getId() != null) {
+                resolvedCategory = categoryService.getCategoryById(product.getCategory().getId()).orElse(null);
+            } else if (product.getCategory().getNom() != null && !product.getCategory().getNom().isBlank()) {
+                String catNom = product.getCategory().getNom().trim();
+                resolvedCategory = categoryService.getCategoryByMarketAndNom(targetMarketId, catNom)
+                        .orElseGet(() -> {
+                            Market m = marketService.getMarketById(targetMarketId)
+                                    .orElseGet(() -> marketService.createMarket(Market.builder().id(targetMarketId).nom(targetMarketId).build()));
+                            return categoryService.createCategory(Category.builder().nom(catNom).market(m).build());
+                        });
+            }
+        }
+
+        if (resolvedCategory != null) {
+            product.setCategory(resolvedCategory);
+            product.setMarketId(resolvedCategory.getMarket() != null ? resolvedCategory.getMarket().getId() : targetMarketId);
         }
 
         Product saved = productService.createProduct(product);
@@ -90,6 +107,7 @@ public class ProductController {
             @RequestParam("prix") Double productPrix,
             @RequestParam(value = "ancienPrix", required = false) Double ancienPrix,
             @RequestParam(value = "stock", required = false, defaultValue = "20") Integer productStock,
+            @RequestParam(value = "categoryId", required = false) Long categoryId,
             @RequestParam(value = "category", required = false) String categoryNom,
             @RequestParam(value = "marketId", required = false) String marketId,
             @RequestParam(value = "sousTitre", required = false) String sousTitre,
@@ -102,13 +120,19 @@ public class ProductController {
             HttpServletRequest request
     ) throws IOException {
 
-        Category category = null;
-        if (categoryNom != null && !categoryNom.isBlank()) {
-            String normalizedCategoryName = categoryNom.trim().toLowerCase();
-            category = categoryService.getCategoryByNom(normalizedCategoryName)
-                    .orElseGet(() -> categoryService.createCategory(
-                            new Category(null, normalizedCategoryName, null)
-                    ));
+        String targetMarketId = (marketId != null && !marketId.isBlank()) ? marketId : "vestimentaire";
+        Category resolvedCategory = null;
+
+        if (categoryId != null) {
+            resolvedCategory = categoryService.getCategoryById(categoryId).orElse(null);
+        } else if (categoryNom != null && !categoryNom.isBlank()) {
+            String normCat = categoryNom.trim();
+            resolvedCategory = categoryService.getCategoryByMarketAndNom(targetMarketId, normCat)
+                    .orElseGet(() -> {
+                        Market m = marketService.getMarketById(targetMarketId)
+                                .orElseGet(() -> marketService.createMarket(Market.builder().id(targetMarketId).nom(targetMarketId).build()));
+                        return categoryService.createCategory(Category.builder().nom(normCat).market(m).build());
+                    });
         }
 
         String imageUrl = null;
@@ -122,7 +146,7 @@ public class ProductController {
                 .prix(productPrix)
                 .ancienPrix(ancienPrix)
                 .stock(productStock != null ? productStock : 20)
-                .marketId(marketId != null ? marketId : "vestimentaire")
+                .marketId(resolvedCategory != null && resolvedCategory.getMarket() != null ? resolvedCategory.getMarket().getId() : targetMarketId)
                 .sousTitre(sousTitre)
                 .badge(badge)
                 .tailles(tailles)
@@ -130,7 +154,7 @@ public class ProductController {
                 .composition(composition)
                 .pointsForts(pointsForts)
                 .imageUrl(imageUrl)
-                .category(category)
+                .category(resolvedCategory)
                 .rating(5.0)
                 .reviewCount(1)
                 .build();
@@ -173,11 +197,20 @@ public class ProductController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product updatedProduct) {
-        if (updatedProduct.getCategory() != null && updatedProduct.getCategory().getNom() != null) {
-            String norm = updatedProduct.getCategory().getNom().trim().toLowerCase();
-            Category category = categoryService.getCategoryByNom(norm)
-                    .orElseGet(() -> categoryService.createCategory(new Category(null, norm, null)));
-            updatedProduct.setCategory(category);
+        if (updatedProduct.getCategory() != null) {
+            if (updatedProduct.getCategory().getId() != null) {
+                Category cat = categoryService.getCategoryById(updatedProduct.getCategory().getId()).orElse(null);
+                if (cat != null) updatedProduct.setCategory(cat);
+            } else if (updatedProduct.getCategory().getNom() != null && !updatedProduct.getCategory().getNom().isBlank()) {
+                String targetMarket = updatedProduct.getMarketId() != null ? updatedProduct.getMarketId() : "vestimentaire";
+                Category cat = categoryService.getCategoryByMarketAndNom(targetMarket, updatedProduct.getCategory().getNom())
+                        .orElseGet(() -> {
+                            Market m = marketService.getMarketById(targetMarket)
+                                    .orElseGet(() -> marketService.createMarket(Market.builder().id(targetMarket).nom(targetMarket).build()));
+                            return categoryService.createCategory(Category.builder().nom(updatedProduct.getCategory().getNom().trim()).market(m).build());
+                        });
+                updatedProduct.setCategory(cat);
+            }
         }
         Product saved = productService.updateProduct(id, updatedProduct);
         return ResponseEntity.ok(saved);

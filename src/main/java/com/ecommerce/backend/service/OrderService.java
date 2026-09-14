@@ -23,6 +23,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
 
     // 🛒 Transformer le panier en commande (depuis DTO frontend ou depuis base)
     @Transactional
@@ -31,20 +32,55 @@ public class OrderService {
             throw new RuntimeException("Utilisateur non authentifié");
         }
 
+        // Sauvegarder le téléphone et l'adresse dans le profil si non renseignés
+        if (request != null) {
+            boolean userUpdated = false;
+            if (request.getTelephone() != null && !request.getTelephone().isBlank()) {
+                if (user.getTelephone() == null || user.getTelephone().isBlank()) {
+                    user.setTelephone(request.getTelephone());
+                    userUpdated = true;
+                }
+            }
+            if (request.getAdresseLivraison() != null && !request.getAdresseLivraison().isBlank()) {
+                if (user.getAdresse() == null || user.getAdresse().isBlank()) {
+                    user.setAdresse(request.getAdresseLivraison());
+                    userUpdated = true;
+                }
+            }
+            if (userUpdated) {
+                userRepository.save(user);
+            }
+        }
+
         List<OrderItem> savedOrderItems = new ArrayList<>();
         double total = 0.0;
         double fraisPort = (request != null && request.getFraisPort() != null) ? request.getFraisPort() : 0.0;
 
         // Cas 1 : Le frontend fournit directement les articles du panier
         if (request != null && request.getItems() != null && !request.getItems().isEmpty()) {
+            // 1. Vérification stricte de la disponibilité du stock pour TOUS les articles
+            for (OrderItemDTO itemDto : request.getItems()) {
+                if (itemDto.getProductId() != null) {
+                    Product p = productRepository.findById(itemDto.getProductId()).orElse(null);
+                    if (p != null) {
+                        int requestedQty = itemDto.getEffectiveQuantity();
+                        int availableStock = (p.getStock() != null) ? p.getStock() : 0;
+                        if (availableStock < requestedQty) {
+                            throw new RuntimeException("Stock insuffisant pour l'article « " + p.getNom() + 
+                                    " ». Quantité restante disponible : " + availableStock + " (quantité demandée : " + requestedQty + ").");
+                        }
+                    }
+                }
+            }
+
             Order order = Order.builder()
                     .user(user)
                     .createdAt(LocalDateTime.now())
                     .status(OrderStatus.EN_ATTENTE)
                     .adresseLivraison(request.getAdresseLivraison() != null ? request.getAdresseLivraison() : user.getAdresse())
                     .telephone(request.getTelephone() != null ? request.getTelephone() : user.getTelephone())
-                    .modePaiement(request.getModePaiement() != null ? request.getModePaiement() : "Carte Bancaire")
-                    .marche(request.getMarche() != null ? request.getMarche() : "Général")
+                    .modePaiement(request.getModePaiement() != null ? request.getModePaiement() : "Mobile Money")
+                    .marche(request.getMarche() != null ? request.getMarche() : "Mode & Vestimentaire")
                     .fraisPort(fraisPort)
                     .totalAmount(0.0) // recalculé
                     .build();
@@ -74,9 +110,9 @@ public class OrderService {
                 double unitPrice = itemDto.getPrixUnitaire() != null ? itemDto.getPrixUnitaire() : product.getPrix();
                 total += unitPrice * qty;
 
-                // Décrémenter le stock si disponible
-                if (product.getStock() != null && product.getStock() >= qty) {
-                    product.setStock(product.getStock() - qty);
+                // Décrémentation effective du stock
+                if (product.getStock() != null) {
+                    product.setStock(Math.max(0, product.getStock() - qty));
                     productRepository.save(product);
                 }
 
@@ -111,9 +147,10 @@ public class OrderService {
 
         for (CartItem item : cartItems) {
             Product product = item.getProduct();
-            if (product.getStock() < item.getQuantity()) {
-                throw new RuntimeException("Stock insuffisant pour le produit : " + product.getNom() +
-                        ". Stock disponible : " + product.getStock());
+            if (product.getStock() == null || product.getStock() < item.getQuantity()) {
+                int available = product.getStock() != null ? product.getStock() : 0;
+                throw new RuntimeException("Stock insuffisant pour l'article « " + product.getNom() +
+                        " ». Quantité restante disponible : " + available + " (quantité demandée : " + item.getQuantity() + ").");
             }
             total += product.getPrix() * item.getQuantity();
         }
@@ -126,16 +163,18 @@ public class OrderService {
                 .fraisPort(fraisPort)
                 .adresseLivraison(request != null ? request.getAdresseLivraison() : user.getAdresse())
                 .telephone(request != null ? request.getTelephone() : user.getTelephone())
-                .modePaiement(request != null ? request.getModePaiement() : "Carte Bancaire")
-                .marche(request != null ? request.getMarche() : "Général")
+                .modePaiement(request != null ? request.getModePaiement() : "Mobile Money")
+                .marche(request != null && request.getMarche() != null ? request.getMarche() : "Mode & Vestimentaire")
                 .build();
 
         order = orderRepository.save(order);
 
         for (CartItem item : cartItems) {
             Product product = item.getProduct();
-            product.setStock(product.getStock() - item.getQuantity());
-            productRepository.save(product);
+            if (product.getStock() != null) {
+                product.setStock(Math.max(0, product.getStock() - item.getQuantity()));
+                productRepository.save(product);
+            }
 
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
@@ -163,6 +202,8 @@ public class OrderService {
         response.put("total", order.getTotalAmount());
         response.put("fraisPort", order.getFraisPort());
         response.put("adresseLivraison", order.getAdresseLivraison());
+        response.put("telephone", order.getTelephone());
+        response.put("modePaiement", order.getModePaiement());
         response.put("marche", order.getMarche());
         response.put("createdAt", order.getCreatedAt());
         response.put("items", items);
@@ -170,11 +211,13 @@ public class OrderService {
     }
 
     // 👤 Voir les commandes d’un utilisateur
+    @Transactional
     public List<Order> getOrdersByUser(User user) {
         return orderRepository.findByUserOrderByCreatedAtDesc(user);
     }
 
     // 👨‍💼 Voir toutes les commandes (admin)
+    @Transactional
     public List<Order> getAllOrders() {
         return orderRepository.findAllByOrderByCreatedAtDesc();
     }
@@ -185,8 +228,33 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Commande introuvable avec l'ID : " + orderId));
 
-        order.setStatus(newStatus);
-        orderRepository.save(order);
+        OrderStatus oldStatus = order.getStatus();
+        if (oldStatus != newStatus) {
+            // Si la commande passe à ANNULEE, réapprovisionner le stock
+            if (newStatus == OrderStatus.ANNULEE && oldStatus != OrderStatus.ANNULEE) {
+                List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
+                for (OrderItem item : orderItems) {
+                    Product product = item.getProduct();
+                    if (product != null && product.getStock() != null) {
+                        product.setStock(product.getStock() + item.getQuantity());
+                        productRepository.save(product);
+                    }
+                }
+            }
+            // Si la commande était ANNULEE et est réactivée, décrémenter le stock
+            else if (oldStatus == OrderStatus.ANNULEE && newStatus != OrderStatus.ANNULEE) {
+                List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
+                for (OrderItem item : orderItems) {
+                    Product product = item.getProduct();
+                    if (product != null && product.getStock() != null) {
+                        product.setStock(Math.max(0, product.getStock() - item.getQuantity()));
+                        productRepository.save(product);
+                    }
+                }
+            }
+            order.setStatus(newStatus);
+            orderRepository.save(order);
+        }
     }
 
     // ❌ Annuler une commande (user, < 10 min)
@@ -199,6 +267,10 @@ public class OrderService {
             throw new RuntimeException("Accès refusé");
         }
 
+        if (order.getStatus() == OrderStatus.ANNULEE) {
+            return; // Déjà annulée
+        }
+
         Duration duration = Duration.between(order.getCreatedAt(), LocalDateTime.now());
         if (duration.toMinutes() > 10) {
             throw new RuntimeException("Impossible d'annuler après 10 minutes");
@@ -208,7 +280,7 @@ public class OrderService {
         List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
         for (OrderItem item : orderItems) {
             Product product = item.getProduct();
-            if (product != null) {
+            if (product != null && product.getStock() != null) {
                 product.setStock(product.getStock() + item.getQuantity());
                 productRepository.save(product);
             }

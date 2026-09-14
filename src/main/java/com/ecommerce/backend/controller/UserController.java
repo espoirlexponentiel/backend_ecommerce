@@ -136,15 +136,78 @@ public class UserController {
         ));
     }
 
-    // 🔓 Callback OAuth2 Google
+    // 📝 Mettre à jour le profil de l'utilisateur connecté (téléphone, adresse, nom)
+    @PutMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> updateProfile(
+            @AuthenticationPrincipal Object principal,
+            @RequestBody Map<String, String> profileData
+    ) {
+        String email = null;
+        if (principal instanceof User u) {
+            email = u.getEmail();
+        } else if (principal instanceof org.springframework.security.core.userdetails.UserDetails ud) {
+            email = ud.getUsername();
+        } else if (principal instanceof String str) {
+            email = str;
+        }
+
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Non authentifié"));
+        }
+
+        Optional<User> userOpt = userService.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Utilisateur introuvable"));
+        }
+
+        User u = userOpt.get();
+        if (profileData != null) {
+            if (profileData.containsKey("telephone")) {
+                u.setTelephone(profileData.get("telephone"));
+            }
+            if (profileData.containsKey("adresse")) {
+                u.setAdresse(profileData.get("adresse"));
+            }
+            if (profileData.containsKey("nom") && profileData.get("nom") != null && !profileData.get("nom").isBlank()) {
+                u.setNom(profileData.get("nom"));
+                u.setUsername(profileData.get("nom"));
+            }
+        }
+
+        User saved = userService.save(u);
+
+        Map<String, Object> userData = new HashMap<>();
+        userData.put("id", saved.getId());
+        userData.put("email", saved.getEmail());
+        userData.put("nom", saved.getDisplayName());
+        userData.put("username", saved.getDisplayName());
+        userData.put("role", saved.getRole());
+        userData.put("telephone", saved.getTelephone() != null ? saved.getTelephone() : "");
+        userData.put("adresse", saved.getAdresse() != null ? saved.getAdresse() : "");
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Profil mis à jour avec succès",
+                "user", userData
+        ));
+    }
+
+    // 🔓 Callback OAuth2 Google -> Redirection vers le frontend React avec le JWT Token
     @GetMapping("/oauth2/success")
-    public ResponseEntity<?> oauth2Success(@AuthenticationPrincipal OAuth2User principal) {
+    public ResponseEntity<?> oauth2Success(
+            @AuthenticationPrincipal OAuth2User principal,
+            jakarta.servlet.http.HttpServletResponse response
+    ) throws java.io.IOException {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Authentification Google échouée"));
+            response.sendRedirect("http://localhost:3000/login?error=oauth2_failed");
+            return null;
         }
 
         String email = principal.getAttribute("email");
         String name = principal.getAttribute("name");
+        if (name == null || name.isBlank()) {
+            name = email != null ? email.split("@")[0] : "Utilisateur";
+        }
 
         Optional<User> existingUser = userService.findByEmail(email);
         User user;
@@ -160,26 +223,23 @@ public class UserController {
             user = userService.save(user);
         } else {
             user = existingUser.get();
+            // Toute connexion via Google attribue le rôle USER
+            user.setRole("USER");
+            user = userService.save(user);
         }
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
+        String encodedName = java.net.URLEncoder.encode(user.getDisplayName() != null ? user.getDisplayName() : name, java.nio.charset.StandardCharsets.UTF_8);
 
-        Map<String, Object> userData = new HashMap<>();
-        userData.put("id", user.getId());
-        userData.put("email", user.getEmail());
-        userData.put("nom", user.getDisplayName());
-        userData.put("role", user.getRole());
-        userData.put("provider", user.getProvider());
+        String redirectUrl = String.format(
+                "http://localhost:3000/login?token=%s&email=%s&role=%s&nom=%s",
+                token,
+                user.getEmail(),
+                user.getRole(),
+                encodedName
+        );
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("token", token);
-        response.put("username", user.getDisplayName());
-        response.put("nom", user.getDisplayName());
-        response.put("email", user.getEmail());
-        response.put("role", user.getRole());
-        response.put("provider", user.getProvider());
-        response.put("user", userData);
-
-        return ResponseEntity.ok(response);
+        response.sendRedirect(redirectUrl);
+        return null;
     }
 }

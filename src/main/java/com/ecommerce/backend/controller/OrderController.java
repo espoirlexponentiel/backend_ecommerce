@@ -21,13 +21,30 @@ import java.util.Map;
 public class OrderController {
 
     private final OrderService orderService;
+    private final com.ecommerce.backend.service.UserService userService;
+
+    private User resolveUser(Object principal) {
+        if (principal instanceof User u) {
+            return u;
+        }
+        if (principal != null) {
+            String email = (principal instanceof org.springframework.security.core.userdetails.UserDetails ud)
+                    ? ud.getUsername()
+                    : principal.toString();
+            if (email != null && !email.isBlank()) {
+                return userService.findByEmail(email.trim().toLowerCase()).orElse(null);
+            }
+        }
+        return null;
+    }
 
     // 🛒 Valider le panier et créer une commande
     @PostMapping
     public ResponseEntity<?> placeOrder(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal Object principal,
             @RequestBody(required = false) com.ecommerce.backend.dto.OrderRequestDTO orderRequest
     ) {
+        User user = resolveUser(principal);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Connexion requise pour passer une commande"));
@@ -43,7 +60,8 @@ public class OrderController {
 
     // 👤 Voir ses propres commandes
     @GetMapping
-    public ResponseEntity<?> getUserOrders(@AuthenticationPrincipal User user) {
+    public ResponseEntity<?> getUserOrders(@AuthenticationPrincipal Object principal) {
+        User user = resolveUser(principal);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Connexion requise"));
@@ -56,9 +74,9 @@ public class OrderController {
         return ResponseEntity.ok(summaries);
     }
 
-    // 👨‍💼 Voir toutes les commandes (admin)
+    // 👨‍💼 Voir toutes les commandes
     @GetMapping("/admin")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getAllOrders() {
         List<Order> orders = orderService.getAllOrders();
         List<OrderSummaryDTO> summaries = orders.stream()
@@ -67,9 +85,9 @@ public class OrderController {
         return ResponseEntity.ok(summaries);
     }
 
-    // 🔄 Modifier le statut d’une commande (admin)
-    @PutMapping("/admin/{orderId}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    // 🔄 Modifier le statut d’une commande
+    @PutMapping({"/admin/{orderId}/status", "/{orderId}/status"})
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateOrderStatus(
             @PathVariable Long orderId,
             @RequestParam(required = false) String status,
@@ -90,18 +108,20 @@ public class OrderController {
             return ResponseEntity.ok(Map.of(
                     "message", "Statut mis à jour avec succès",
                     "orderId", orderId,
-                    "status", newStatus.name()
+                    "status", newStatus.name(),
+                    "statut", newStatus.name()
             ));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
         }
     }
 
-    // ❌ Annuler une commande (user, < 10 min)
+    // ❌ Annuler une commande (< 10 min)
     @DeleteMapping("/{orderId}")
-    @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<?> cancelOrder(@AuthenticationPrincipal User user,
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> cancelOrder(@AuthenticationPrincipal Object principal,
                                          @PathVariable Long orderId) {
+        User user = resolveUser(principal);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Connexion requise"));

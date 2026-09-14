@@ -21,14 +21,23 @@ public class UserService {
             throw new RuntimeException("L'adresse email est obligatoire");
         }
 
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Utilisateur déjà existant avec cet email : " + user.getEmail());
+        String normalizedEmail = user.getEmail().trim().toLowerCase();
+        user.setEmail(normalizedEmail);
+
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new RuntimeException("Un compte existe déjà avec cette adresse email.");
         }
 
-        if (user.getNom() == null && user.getUsername() != null) {
-            user.setNom(user.getUsername());
-        } else if (user.getUsername() == null && user.getNom() != null) {
-            user.setUsername(user.getNom());
+        if (user.getNom() != null && !user.getNom().isBlank()) {
+            user.setUsername(user.getNom().trim());
+            user.setNom(user.getNom().trim());
+        } else if (user.getUsername() != null && !user.getUsername().isBlank()) {
+            user.setNom(user.getUsername().trim());
+            user.setUsername(user.getUsername().trim());
+        } else {
+            String fallbackName = normalizedEmail.split("@")[0];
+            user.setNom(fallbackName);
+            user.setUsername(fallbackName);
         }
 
         if (user.getPassword() != null && !user.getPassword().isBlank()) {
