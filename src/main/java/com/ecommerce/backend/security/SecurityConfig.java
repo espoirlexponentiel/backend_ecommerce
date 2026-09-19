@@ -13,7 +13,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.security.config.Customizer;
-// import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
@@ -24,6 +23,10 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Autowired
+    @org.springframework.context.annotation.Lazy
+    private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -39,15 +42,18 @@ public class SecurityConfig {
                 // 🔓 Autoriser les pré-requêtes CORS
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // 🔓 Routes publiques
+                // 🔓 Routes publiques d'authentification
                 .requestMatchers("/api/users/register").permitAll()
                 .requestMatchers("/api/users/login").permitAll()
+                .requestMatchers("/api/users/oauth2/**").permitAll()
                 .requestMatchers("/oauth2/**").permitAll()
+                .requestMatchers("/login/oauth2/**").permitAll()
 
-                // 🔓 Accès libre aux produits, catégories et marchés
+                // 🔓 Accès libre aux produits, catégories, marchés et paramètres du site
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/markets/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/settings/**").permitAll()
 
                 // 🔓 Images accessibles sans authentification
                 .requestMatchers("/uploads/**").permitAll()
@@ -61,7 +67,14 @@ public class SecurityConfig {
             )
             // 🔐 Configuration OAuth2
             .oauth2Login(oauth -> oauth
-                .defaultSuccessUrl("/api/users/oauth2/success", true)
+                .successHandler(oAuth2AuthenticationSuccessHandler)
+                .failureHandler((request, response, exception) -> {
+                    System.err.println("⚠️ [OAuth2] Échec authentification Google: " + exception.getMessage());
+                    String msg = exception.getMessage() != null
+                            ? java.net.URLEncoder.encode(exception.getMessage(), java.nio.charset.StandardCharsets.UTF_8)
+                            : "oauth2_failed";
+                    response.sendRedirect("http://localhost:3000/login?error=" + msg);
+                })
             )
             // 🛡️ Réponse JSON propre en cas de non-authentification sur les API REST
             .exceptionHandling(ex -> ex

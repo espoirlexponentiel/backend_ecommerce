@@ -34,7 +34,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return path.startsWith("/uploads/")              // Images publiques
             || path.startsWith("/api/users/login")       // Login
             || path.startsWith("/api/users/register")    // Register
-            || path.startsWith("/oauth2/");              // OAuth2
+            || path.startsWith("/api/users/oauth2/")     // OAuth2
+            || path.startsWith("/oauth2/")              // OAuth2
+            || path.startsWith("/login/oauth2/");       // OAuth2
     }
 
     @Override

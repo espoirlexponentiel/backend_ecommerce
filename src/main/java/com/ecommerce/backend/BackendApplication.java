@@ -76,4 +76,25 @@ public class BackendApplication {
 			}
 		};
 	}
+
+	@Bean
+	public CommandLineRunner initSiteConfig(com.ecommerce.backend.repository.SiteConfigRepository siteConfigRepository) {
+		return args -> {
+			try {
+				if (!siteConfigRepository.existsById(1L)) {
+					com.ecommerce.backend.entity.SiteConfig config = com.ecommerce.backend.entity.SiteConfig.builder()
+							.id(1L)
+							.brandName("PolyShop")
+							.brandBadge("P")
+							.tagline("Boutique Officielle")
+							.logoUrl("")
+							.build();
+					siteConfigRepository.save(config);
+					System.out.println("✅ [PolyShop] Configuration identité & logo initialisée !");
+				}
+			} catch (Exception e) {
+				System.err.println("⚠️ [7 SHOP] Erreur initialisation config site : " + e.getMessage());
+			}
+		};
+	}
 }
