@@ -23,7 +23,7 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         initUsers();
         initDefaultMarkets();
-        log.info("🚀 Base de données prête : 2 Marchés principaux configurés et prêts à accueillir les catégories et produits.");
+        log.info("🚀 Base de données prête : Marché principal configuré.");
     }
 
     private void initDefaultMarkets() {
@@ -50,27 +50,10 @@ public class DataInitializer implements CommandLineRunner {
             log.info("✅ Marché initialisé en BDD : Mode & Vestimentaire (vestimentaire)");
         }
 
-        // 2. Marché Alimentation Générale (Jaune #EAB308 / Accent Bleu #0066FF)
-        if (!marketRepository.existsById("alimentation-generale")) {
-            Market alimentation = Market.builder()
-                    .id("alimentation-generale")
-                    .nom("Alimentation Générale")
-                    .slug("alimentation-generale")
-                    .icone("🌾")
-                    .couleurPrimaire("#EAB308")
-                    .couleurPrimaireHover("#CA8A04")
-                    .couleurAccent("#0066FF")
-                    .couleurHeroBg("linear-gradient(135deg, #ffffff 0%, #fffbeb 50%, #fef3c7 100%)")
-                    .heroTitre("Le Goût & La Fraîcheur.\nVos Essentiels au Quotidien.")
-                    .heroSousTitre("Épicerie de qualité, riz parfumé, huiles végétales pures, boissons rafraîchissantes et condiments sélectionnés.")
-                    .heroImageUrl("/images/hero-food.png")
-                    .heroImageAlt("Panier Alimentation Générale 7 Shop - Épicerie Fine & Terroir")
-                    .heroImageWidth("480px")
-                    .heroImageHeight("500px")
-                    .heroImageObjectFit("contain")
-                    .build();
-            marketRepository.save(alimentation);
-            log.info("✅ Marché initialisé en BDD : Alimentation Générale (alimentation-generale)");
+        // Nettoyage : suppression de 'alimentation-generale' si existant
+        if (marketRepository.existsById("alimentation-generale")) {
+            marketRepository.deleteById("alimentation-generale");
+            log.info("🗑️ Marché supprimé de la BDD : alimentation-generale");
         }
     }
 

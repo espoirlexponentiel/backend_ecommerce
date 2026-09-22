@@ -109,9 +109,9 @@ public class MarketService {
             throw new IllegalArgumentException("Identifiant du marché invalide.");
         }
 
-        // 🛡️ Protection des 2 marchés racines fondamentaux
-        if ("vestimentaire".equalsIgnoreCase(id.trim()) || "alimentation-generale".equalsIgnoreCase(id.trim())) {
-            throw new IllegalArgumentException("Les 2 marchés de base (Mode & Vestimentaire et Alimentation Générale) ne peuvent pas être supprimés. Vous pouvez en revanche les masquer si nécessaire.");
+        // 🛡️ Protection du marché racine fondamental
+        if ("vestimentaire".equalsIgnoreCase(id.trim())) {
+            throw new IllegalArgumentException("Le marché de base (Mode & Vestimentaire) ne peut pas être supprimé. Vous pouvez en revanche le masquer si nécessaire.");
         }
 
         if (!marketRepository.existsById(id)) {

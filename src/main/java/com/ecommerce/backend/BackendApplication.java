@@ -36,7 +36,7 @@ public class BackendApplication {
 	public CommandLineRunner initCleanMarkets(MarketRepository marketRepository) {
 		return args -> {
 			try {
-				// Marché 1 : Mode & Vestimentaire
+				// Marché Unique par Défaut : Mode & Vestimentaire
 				Market vestimentaire = marketRepository.findById("vestimentaire").orElse(new Market());
 				vestimentaire.setId("vestimentaire");
 				vestimentaire.setSlug("vestimentaire");
@@ -53,24 +53,13 @@ public class BackendApplication {
 				vestimentaire.setIsActive(true);
 				marketRepository.save(vestimentaire);
 
-				// Marché 2 : Alimentation Générale
-				Market alimentation = marketRepository.findById("alimentation-generale").orElse(new Market());
-				alimentation.setId("alimentation-generale");
-				alimentation.setSlug("alimentation-generale");
-				alimentation.setNom("Alimentation Générale");
-				alimentation.setIcone("🌾");
-				alimentation.setCouleurPrimaire("#EAB308");
-				alimentation.setCouleurPrimaireHover("#CA8A04");
-				alimentation.setCouleurAccent("#0066FF");
-				alimentation.setCouleurHeroBg("linear-gradient(135deg, #ffffff 0%, #fffbeb 50%, #fef3c7 100%)");
-				alimentation.setHeroTitre("Le Goût & La Fraîcheur.\nVos Essentiels au Quotidien.");
-				alimentation.setHeroSousTitre("Épicerie de qualité, riz parfumé de premier choix, huiles végétales pures, boissons rafraîchissantes, condiments et produits du terroir sélectionnés pour nourrir et régaler toute la famille.");
-				alimentation.setHeroImageUrl("/images/hero-food.png");
-				alimentation.setHeroImageAlt("Panier Alimentation Générale 7 Shop - Épicerie Fine & Terroir");
-				alimentation.setIsActive(true);
-				marketRepository.save(alimentation);
+				// Nettoyage automatique : Suppression de 'alimentation-generale' de la BDD si présent
+				if (marketRepository.existsById("alimentation-generale")) {
+					marketRepository.deleteById("alimentation-generale");
+					System.out.println("🗑️ [7 SHOP] Ancien marché 'Alimentation Générale' supprimé de la BDD.");
+				}
 
-				System.out.println("✅ [7 SHOP] Marchés fondateurs synchronisés avec encodage UTF-8 et icônes certifiées !");
+				System.out.println("✅ [7 SHOP] Marché Mode & Vestimentaire synchronisé !");
 			} catch (Exception e) {
 				System.err.println("⚠️ [7 SHOP] Erreur synchronisation marchés : " + e.getMessage());
 			}
