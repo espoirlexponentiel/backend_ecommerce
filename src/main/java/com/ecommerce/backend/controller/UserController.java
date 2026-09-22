@@ -25,7 +25,7 @@ public class UserController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    @org.springframework.beans.factory.annotation.Value("${frontend.url:https://sevenshop-interface.onrender.com}")
+    @org.springframework.beans.factory.annotation.Value("${frontend.url:https://polyshop-interface.onrender.com}")
     private String frontendUrl;
 
     // 🔓 Inscription classique avec gestion d'erreur

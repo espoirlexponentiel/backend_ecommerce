@@ -28,7 +28,7 @@ public class SecurityConfig {
     @org.springframework.context.annotation.Lazy
     private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
-    @org.springframework.beans.factory.annotation.Value("${frontend.url:https://sevenshop-interface.onrender.com}")
+    @org.springframework.beans.factory.annotation.Value("${frontend.url:https://polyshop-interface.onrender.com}")
     private String frontendUrl;
 
     @Bean
@@ -99,7 +99,7 @@ public class SecurityConfig {
         config.addAllowedOriginPattern("http://localhost:[*]"); // ✅ Supporte tous les ports localhost (3000, 5173, etc.)
         config.addAllowedOriginPattern("https://*.onrender.com"); // ✅ Supporte tous les sous-domaines Render
         config.addAllowedOrigin("http://localhost:3000");
-        config.addAllowedOrigin("https://sevenshop-interface.onrender.com");
+        config.addAllowedOrigin("https://polyshop-interface.onrender.com");
         if (frontendUrl != null && !frontendUrl.isBlank()) {
             config.addAllowedOrigin(frontendUrl.trim());
         }

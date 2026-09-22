@@ -27,7 +27,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     @Autowired
     private JwtUtil jwtUtil;
 
-    @org.springframework.beans.factory.annotation.Value("${frontend.url:https://sevenshop-interface.onrender.com}")
+    @org.springframework.beans.factory.annotation.Value("${frontend.url:https://polyshop-interface.onrender.com}")
     private String frontendUrl;
 
     @Override
