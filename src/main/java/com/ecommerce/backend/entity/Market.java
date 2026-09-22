@@ -60,6 +60,16 @@ public class Market {
     @Column(name = "hero_image_alt", nullable = true)
     private String heroImageAlt;
 
+    @Column(name = "hero_image_width", nullable = true)
+    private String heroImageWidth;
+
+    @Column(name = "hero_image_height", nullable = true)
+    private String heroImageHeight;
+
+    @Column(name = "hero_image_object_fit", nullable = true)
+    @Builder.Default
+    private String heroImageObjectFit = "contain";
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;

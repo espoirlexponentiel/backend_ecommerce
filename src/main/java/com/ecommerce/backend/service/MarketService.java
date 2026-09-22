@@ -83,6 +83,9 @@ public class MarketService {
                     if (updated.getHeroSousTitre() != null) existing.setHeroSousTitre(updated.getHeroSousTitre());
                     if (updated.getHeroImageUrl() != null) existing.setHeroImageUrl(updated.getHeroImageUrl());
                     if (updated.getHeroImageAlt() != null) existing.setHeroImageAlt(updated.getHeroImageAlt());
+                    if (updated.getHeroImageWidth() != null) existing.setHeroImageWidth(updated.getHeroImageWidth());
+                    if (updated.getHeroImageHeight() != null) existing.setHeroImageHeight(updated.getHeroImageHeight());
+                    if (updated.getHeroImageObjectFit() != null) existing.setHeroImageObjectFit(updated.getHeroImageObjectFit());
                     if (updated.getIsActive() != null) existing.setIsActive(updated.getIsActive());
                     return marketRepository.save(existing);
                 })

@@ -42,6 +42,9 @@ public class DataInitializer implements CommandLineRunner {
                     .heroSousTitre("Découvrez l'univers 7 Shop : sous-vêtements, chaussettes, débardeurs, pull-overs, ceintures, pantalons, coupes oversize et casquettes.")
                     .heroImageUrl("/images/hero-model.png?v=5")
                     .heroImageAlt("Modèle 7 Shop - Collection Mode Urbaine")
+                    .heroImageWidth("480px")
+                    .heroImageHeight("500px")
+                    .heroImageObjectFit("contain")
                     .build();
             marketRepository.save(vestimentaire);
             log.info("✅ Marché initialisé en BDD : Mode & Vestimentaire (vestimentaire)");
@@ -62,6 +65,9 @@ public class DataInitializer implements CommandLineRunner {
                     .heroSousTitre("Épicerie de qualité, riz parfumé, huiles végétales pures, boissons rafraîchissantes et condiments sélectionnés.")
                     .heroImageUrl("/images/hero-food.png")
                     .heroImageAlt("Panier Alimentation Générale 7 Shop - Épicerie Fine & Terroir")
+                    .heroImageWidth("480px")
+                    .heroImageHeight("500px")
+                    .heroImageObjectFit("contain")
                     .build();
             marketRepository.save(alimentation);
             log.info("✅ Marché initialisé en BDD : Alimentation Générale (alimentation-generale)");
