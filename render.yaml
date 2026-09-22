@@ -30,3 +30,13 @@ services:
         sync: false
       - key: GOOGLE_REDIRECT_URI
         sync: false
+      # Cloudinary
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # Frontend URL
+      - key: FRONTEND_URL
+        value: https://sevenshop-interface.onrender.com

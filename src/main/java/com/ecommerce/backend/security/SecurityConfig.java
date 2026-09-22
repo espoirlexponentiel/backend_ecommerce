@@ -28,6 +28,9 @@ public class SecurityConfig {
     @org.springframework.context.annotation.Lazy
     private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
+    @org.springframework.beans.factory.annotation.Value("${frontend.url:https://sevenshop-interface.onrender.com}")
+    private String frontendUrl;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -73,7 +76,7 @@ public class SecurityConfig {
                     String msg = exception.getMessage() != null
                             ? java.net.URLEncoder.encode(exception.getMessage(), java.nio.charset.StandardCharsets.UTF_8)
                             : "oauth2_failed";
-                    response.sendRedirect("http://localhost:3000/login?error=" + msg);
+                    response.sendRedirect(frontendUrl + "/login?error=" + msg);
                 })
             )
             // 🛡️ Réponse JSON propre en cas de non-authentification sur les API REST
@@ -94,7 +97,12 @@ public class SecurityConfig {
     public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.addAllowedOriginPattern("http://localhost:[*]"); // ✅ Supporte tous les ports localhost (3000, 5173, etc.)
+        config.addAllowedOriginPattern("https://*.onrender.com"); // ✅ Supporte tous les sous-domaines Render
         config.addAllowedOrigin("http://localhost:3000");
+        config.addAllowedOrigin("https://sevenshop-interface.onrender.com");
+        if (frontendUrl != null && !frontendUrl.isBlank()) {
+            config.addAllowedOrigin(frontendUrl.trim());
+        }
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
         config.setAllowCredentials(true); // ✅ autorise les cookies/token

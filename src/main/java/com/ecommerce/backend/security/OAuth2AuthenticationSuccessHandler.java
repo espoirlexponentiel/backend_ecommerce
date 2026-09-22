@@ -27,13 +27,16 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     @Autowired
     private JwtUtil jwtUtil;
 
+    @org.springframework.beans.factory.annotation.Value("${frontend.url:https://sevenshop-interface.onrender.com}")
+    private String frontendUrl;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
         try {
             if (!(authentication.getPrincipal() instanceof OAuth2User principal)) {
                 System.err.println("⚠️ [OAuth2] Principal n'est pas une instance de OAuth2User");
-                response.sendRedirect("http://localhost:3000/login?error=oauth2_failed");
+                response.sendRedirect(frontendUrl + "/login?error=oauth2_failed");
                 return;
             }
 
@@ -46,7 +49,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
             if (email == null || email.isBlank()) {
                 System.err.println("⚠️ [OAuth2] Email manquant dans le token Google");
-                response.sendRedirect("http://localhost:3000/login?error=oauth2_failed");
+                response.sendRedirect(frontendUrl + "/login?error=oauth2_failed");
                 return;
             }
 
@@ -79,7 +82,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             String encodedName = URLEncoder.encode(user.getDisplayName() != null ? user.getDisplayName() : name, StandardCharsets.UTF_8);
 
             String redirectUrl = String.format(
-                    "http://localhost:3000/login?token=%s&email=%s&role=%s&nom=%s",
+                    "%s/login?token=%s&email=%s&role=%s&nom=%s",
+                    frontendUrl,
                     token,
                     user.getEmail(),
                     user.getRole(),
@@ -89,7 +93,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             response.sendRedirect(redirectUrl);
         } catch (Exception e) {
             String msg = e.getMessage() != null ? URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8) : "oauth2_failed";
-            response.sendRedirect("http://localhost:3000/login?error=" + msg);
+            response.sendRedirect(frontendUrl + "/login?error=" + msg);
         }
     }
 }

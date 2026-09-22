@@ -25,6 +25,9 @@ public class UserController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @org.springframework.beans.factory.annotation.Value("${frontend.url:https://sevenshop-interface.onrender.com}")
+    private String frontendUrl;
+
     // 🔓 Inscription classique avec gestion d'erreur
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody User user) {
@@ -199,7 +202,7 @@ public class UserController {
             jakarta.servlet.http.HttpServletResponse response
     ) throws java.io.IOException {
         if (principal == null) {
-            response.sendRedirect("http://localhost:3000/login?error=oauth2_failed");
+            response.sendRedirect(frontendUrl + "/login?error=oauth2_failed");
             return null;
         }
 
@@ -232,7 +235,8 @@ public class UserController {
         String encodedName = java.net.URLEncoder.encode(user.getDisplayName() != null ? user.getDisplayName() : name, java.nio.charset.StandardCharsets.UTF_8);
 
         String redirectUrl = String.format(
-                "http://localhost:3000/login?token=%s&email=%s&role=%s&nom=%s",
+                "%s/login?token=%s&email=%s&role=%s&nom=%s",
+                frontendUrl,
                 token,
                 user.getEmail(),
                 user.getRole(),
