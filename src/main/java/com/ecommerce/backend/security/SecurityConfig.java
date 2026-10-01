@@ -96,8 +96,11 @@ public class SecurityConfig {
     @Bean
     public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
+        config.addAllowedOriginPattern("*"); // ✅ Supporte tous les appareils (PC, Smartphone sur réseau local 192.168.x.x, Render, etc.)
         config.addAllowedOriginPattern("http://localhost:[*]"); // ✅ Supporte tous les ports localhost (3000, 5173, etc.)
         config.addAllowedOriginPattern("https://*.onrender.com"); // ✅ Supporte tous les sous-domaines Render
+        config.addAllowedOriginPattern("http://192.168.*:[*]");
+        config.addAllowedOriginPattern("http://10.*:[*]");
         config.addAllowedOrigin("http://localhost:3000");
         config.addAllowedOrigin("https://polyshop-interface.onrender.com");
         if (frontendUrl != null && !frontendUrl.isBlank()) {
